@@ -1,0 +1,140 @@
+
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESK Shining Stars</title>
+<style>
+  body { margin:0; font-family: Arial, sans-serif; background:#f4f1ff; color:#1a1446; }
+  header { background: linear-gradient(#1a1446,#3b2a7a); color:#fff; text-align:center; padding:16px; }
+  header h1 { margin:0; color:#ffd84d; }
+  header p { margin:4px 0 0; font-size:14px; opacity:.9; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  .box { background:#fff; border-radius:14px; padding:14px; margin-bottom:14px; box-shadow:0 2px 6px rgba(0,0,0,.08); }
+  label { font-weight:bold; margin-right:6px; }
+  select { font-size:16px; padding:6px 10px; border-radius:8px; margin:4px 12px 4px 0; }
+  .tabs button { font-size:15px; padding:8px 14px; margin:4px; border:2px solid #3b2a7a; border-radius:20px; background:#fff; color:#3b2a7a; cursor:pointer; }
+  .tabs button.active { background:#3b2a7a; color:#fff; }
+  h3 { margin:6px 0 8px; }
+  .chip { display:inline-block; padding:8px 12px; margin:4px; border-radius:20px; background:#eee; cursor:pointer; user-select:none; }
+  .chip.on { background:#ffd84d; font-weight:bold; }
+  #saved { color:green; font-weight:bold; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { border:1px solid #ddd; padding:6px; text-align:left; vertical-align:top; }
+  th { background:#f0ecff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⭐ ESK Shining Stars ⭐</h1>
+  <p>Celebrating Effort • Progress • Participation • Achievement</p>
+</header>
+<main>
+  <div class="box">
+    <label>Week</label><select id="week"></select>
+    <label>Year</label><select id="year"></select>
+    <label>Section</label><select id="section"></select>
+    <span id="saved"></span>
+  </div>
+  <div class="box tabs" id="tabs"></div>
+  <div id="cats"></div>
+  <div class="box">
+    <h3 id="summaryTitle"></h3>
+    <div class="scroll" id="summary"></div>
+  </div>
+</main>
+<script>
+const YEARS = ['FS1','FS2','Year 1','Year 2','Year 3','Year 4','Year 5','Year 6','Year 7','Year 8','Year 9'];
+const SECTIONS = ['A','B','C'];
+const SUBJECTS = ['English','Math','Science','Art','PE','Arabic'];
+const BASE_CATS = ['Star of the Week','Best Participation','Most Improved'];
+const HAND = 'Best Handwriting';
+const FAKE_NAMES = ['Aisha','Omar','Lina','Yusuf','Sara','Zayd','Maryam','Adam'];
+
+const weekSel = document.getElementById('week');
+const yearSel = document.getElementById('year');
+const secSel = document.getElementById('section');
+for (let i = 1; i <= 40; i++) weekSel.add(new Option('Week ' + i, i));
+YEARS.forEach(y => yearSel.add(new Option(y, y)));
+SECTIONS.forEach(s => secSel.add(new Option(s, s)));
+
+let subject = 'English';
+let data = {};
+try { data = JSON.parse(localStorage.getItem('eskAwards') || '{}'); } catch (e) { data = {}; }
+
+function save() {
+  try { localStorage.setItem('eskAwards', JSON.stringify(data)); } catch (e) {}
+  const s = document.getElementById('saved');
+  s.textContent = 'Saved ✓';
+  setTimeout(() => s.textContent = '', 1500);
+}
+function catsFor(subj) {
+  return (subj === 'English' || subj === 'Arabic') ? BASE_CATS.concat(HAND) : BASE_CATS;
+}
+function key(cat, subj) {
+  return [weekSel.value, yearSel.value, secSel.value, subj || subject, cat].join('|');
+}
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  SUBJECTS.forEach(s => {
+    const b = document.createElement('button');
+    b.textContent = s;
+    if (s === subject) b.className = 'active';
+    b.onclick = () => { subject = s; render(); };
+    tabs.appendChild(b);
+  });
+}
+function renderCats() {
+  const box = document.getElementById('cats');
+  box.innerHTML = '';
+  catsFor(subject).forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'box';
+    const h = document.createElement('h3');
+    h.textContent = '🏅 ' + subject + ': ' + cat;
+    div.appendChild(h);
+    const picked = data[key(cat)] || [];
+    FAKE_NAMES.forEach(name => {
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (picked.includes(name) ? ' on' : '');
+      chip.textContent = name;
+      chip.onclick = () => toggle(cat, name);
+      div.appendChild(chip);
+    });
+    box.appendChild(div);
+  });
+}
+function toggle(cat, name) {
+  const k = key(cat);
+  const list = data[k] || [];
+  const i = list.indexOf(name);
+  if (i >= 0) list.splice(i, 1); else list.push(name);
+  if (list.length) data[k] = list; else delete data[k];
+  save();
+  render();
+}
+function renderSummary() {
+  const all = BASE_CATS.concat(HAND);
+  let html = '<table><tr><th>Subject</th>' + all.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+  SUBJECTS.forEach(s => {
+    html += '<tr><td><b>' + s + '</b></td>';
+    all.forEach(c => {
+      if (!catsFor(s).includes(c)) html += '<td>—</td>';
+      else html += '<td>' + (data[key(c, s)] || []).join(', ') + '</td>';
+    });
+    html += '</tr>';
+  });
+  document.getElementById('summary').innerHTML = html + '</table>';
+  document.getElementById('summaryTitle').textContent =
+    '📋 Awards: Week ' + weekSel.value + ' • ' + yearSel.value + ' Section ' + secSel.value;
+}
+function render() { renderTabs(); renderCats(); renderSummary(); }
+[weekSel, yearSel, secSel].forEach(el => el.onchange = render);
+render();
+</script>
+</body>
+</html>
